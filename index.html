@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedded Systems Masterclass: RTOS, Timers, Serial & STM32</title>
+    <style>
+        /* ==========================================================================
+           GLOBAL VARIABLES & RESET
+           ========================================================================== */
+        :root {
+            --bg-color: #f8f9fa;
+            --sidebar-bg: #2c3e50;
+            --sidebar-text: #ecf0f1;
+            --sidebar-hover: #34495e;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --primary-color: #2980b9;
+            --secondary-color: #e74c3c;
+            --code-bg: #282c34;
+            --code-text: #abb2bf;
+            --border-color: #dee2e6;
+            --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-code: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            color: var(--text-main);
+            background-color: var(--bg-color);
+            display: flex;
+            line-height: 1.6;
+        }
+
+        /* ==========================================================================
+           SIDEBAR NAVIGATION
+           ========================================================================== */
+        #sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            height: 100vh;
+            position: fixed;
+            overflow-y: auto;
+            padding: 20px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        #sidebar h2 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            padding: 0 20px;
+            color: #fff;
+            border-bottom: 1px solid var(--sidebar-hover);
+            padding-bottom: 15px;
+        }
+
+        #sidebar ul {
+            list-style: none;
+        }
+
+        #sidebar ul li a {
+            display: block;
+            padding: 12px 25px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 1.1rem;
+            transition: background 0.3s;
+        }
+
+        #sidebar ul li a:hover {
+            background-color: var(--sidebar-hover);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        #sidebar ul li.sub-item a {
+            padding-left: 40px;
+            font-size: 0.95rem;
+            color: #bdc3c7;
+        }
+
+        /* ==========================================================================
+           MAIN CONTENT AREA
+           ========================================================================== */
+        #main-content {
+            margin-left: 300px;
+            padding: 40px 60px;
+            width: calc(100% - 300px);
+            max-width: 1200px;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-top: 50px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        p {
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        ul, ol {
+            margin-bottom: 20px;
+            margin-left: 30px;
+            font-size: 1.1rem;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        strong {
+            color: var(--sidebar-bg);
+        }
+
+        /* ==========================================================================
+           TABLES
+           ========================================================================== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 1.05rem;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: #fff;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        /* ==========================================================================
+           CODE BLOCKS & HIGHLIGHTING
+           ========================================================================== */
+        pre {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            font-family: var(--font-code);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        code {
+            font-family: var(--font-code);
+            background-color: #e9ecef;
+            color: #c0392b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        /* Syntax Highlighting Classes (Manual Implementation) */
+        .c-type { color: #c678dd; } /* Purple for types */
+        .c-keyword { color: #c678dd; } /* Purple for keywords */
+        .c-function { color: #61afef; } /* Blue for functions */
+        .c-comment { color: #5c6370; font-style: italic; } /* Grey for comments */
+        .c-string { color: #98c379; } /* Green for strings */
+        .c-number { color: #d19a66; } /* Orange for numbers */
+        .c-macro { color: #e06c75; } /* Red for macros */
+
+        /* ==========================================================================
+           UTILITY CLASSES
+           ========================================================================== */
+        .callout {
+            background-color: #e8f4f8;
+            border-left: 5px solid var(--primary-color);
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .callout-warning {
+            background-color: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: var(--border-color);
+            margin: 50px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <nav id="sidebar">
+        <h2>Embedded Mastery</h2>
+        <ul>
+            <li><a href="#section-rtos">1. Real-Time OS (RTOS)</a></li>
+            <li class="sub-item"><a href="#rtos-superloop">Super Loop vs RTOS</a></li>
+            <li class="sub-item"><a href="#rtos-states">Task States</a></li>
+            <li class="sub-item"><a href="#rtos-sync">Queues, Mutexes, Semaphores</a></li>
+            
+            <li><a href="#section-realtime">2. Real-Time Systems</a></li>
+            <li class="sub-item"><a href="#rt-constraints">Hard vs Firm vs Soft</a></li>
+            <li class="sub-item"><a href="#rt-scheduling">CPU Scheduling Algorithms</a></li>
+            
+            <li><a href="#section-timers">3. Hardware Timers</a></li>
+            <li class="sub-item"><a href="#timers-base">Time-Base Unit (PSC, CNT, ARR)</a></li>
+            <li class="sub-item"><a href="#timers-modes">Timer Channels & Modes</a></li>
+            <li class="sub-item"><a href="#timers-systick">The SysTick Timer</a></li>
+            
+            <li><a href="#section-serial">4. Serial Communication</a></li>
+            <li class="sub-item"><a href="#serial-uart">UART Protocol</a></li>
+            <li class="sub-item"><a href="#serial-spi">SPI Protocol</a></li>
+            <li class="sub-item"><a href="#serial-i2c">I2C Protocol</a></li>
+
+            <li><a href="#section-stm32">5. STM32 Practical Projects</a></li>
+            <li class="sub-item"><a href="#proj-1">Proj 1: SysTick Blinky</a></li>
+            <li class="sub-item"><a href="#proj-2">Proj 2: Timer Interrupts</a></li>
+            <li class="sub-item"><a href="#proj-3">Proj 3: PWM Generation</a></li>
+            <li class="sub-item"><a href="#proj-4">Proj 4: UART Polling/IT</a></li>
+            <li class="sub-item"><a href="#proj-5">Proj 5: SPI Sensor Read</a></li>
+            <li class="sub-item"><a href="#proj-6">Proj 6: FreeRTOS Queues</a></li>
+        </ul>
+    </nav>
+
+    <main id="main-content">
+        <h1>Embedded Systems & STM32 Development Documentation</h1>
+        <p>This comprehensive guide covers the theoretical foundations of Real-Time Systems, RTOS, Timers, and Serial Communication, and bridges the gap to practical implementation with six detailed STM32 microcontroller projects using C and the HAL library.</p>
+
+        <hr>
+
+        <section id="section-rtos">
+            <h2>1. Real-Time Operating Systems (RTOS)</h2>
+            <p>A Real-Time Operating System (RTOS) is a specialized operating system designed specifically to run applications with highly precise timing and a high degree of reliability. The hallmark of an RTOS is <strong>Determinism</strong>—the guarantee that a system will respond to an event within a strict, predictable timeframe.</p>
+
+            <div class="callout callout-warning">
+                <strong>RTOS vs. GPOS:</strong> A General Purpose Operating System (GPOS) like Windows, Linux, or Android prioritizes throughput and human interaction. It can tolerate occasional lag. An RTOS (like FreeRTOS, VxWorks, or Zephyr) prioritizes deadlines. A late answer in an RTOS is treated as a wrong answer.
+            </div>
+
+            <h3 id="rtos-superloop">Super Loop vs. RTOS</h3>
+            <p>Before RTOS, embedded systems relied heavily on the "Super Loop" (Bare-metal) architecture.</p>
+            <ul>
+                <li><strong>Super Loop (<code>while(1)</code>):</strong> The application runs in a single, infinite loop. Tasks are executed sequentially. Interrupts handle synchronous I/O. It is highly efficient for small microcontrollers (typically < 64KB code size) but scales poorly. If one task gets stuck or takes too long, the whole system freezes, missing real-time deadlines.</li>
+                <li><strong>RTOS Architecture:</strong> The application is divided into multiple independent tasks. A scheduler rapidly switches the CPU context between these tasks based on priority, creating the illusion of parallel processing (pseudo-parallelism).</li>
+            </ul>
+
+            <h3 id="rtos-states">Task States in an RTOS</h3>
+            <p>In an RTOS environment (specifically focusing on FreeRTOS paradigms), a task can exist in one of four primary states:</p>
+            <ol>
+                <li><strong>Running:</strong> The task is currently executing and occupying the CPU. In a single-core MCU, only one task can be in this state at any exact moment.</li>
+                <li><strong>Ready:</strong> The task is not blocked or suspended and is ready to execute, but a task of equal or higher priority is currently in the Running state.</li>
+                <li><strong>Blocked:</strong> The task is waiting for a specific event (e.g., a time delay <code>vTaskDelay</code>, waiting for data on a queue, or waiting for a semaphore). While blocked, it consumes zero CPU cycles.</li>
+                <li><strong>Suspended:</strong> The task has been explicitly paused (e.g., using <code>vTaskSuspend()</code>). It will remain in this state indefinitely until explicitly resumed.</li>
+            </ol>
+
+            <h3 id="rtos-sync">Inter-Task Communication & Synchronization</h3>
+            <p>Using global variables to share data between tasks is dangerous. It leads to <strong>race conditions</strong> and data corruption (e.g., one task reading half a variable while another task is writing to it). An RTOS provides kernel objects to handle this safely.</p>
+
+            <h4>1. Queues</h4>
+            <p>Queues are the primary form of inter-task communication. They operate as First-In-First-Out (FIFO) buffers.</p>
+            <ul>
+                <li><strong>Atomicity:</strong> Reading and writing to a queue are protected by the kernel, making them immune to interrupts and context switches during the operation.</li>
+                <li><strong>Copy by Value:</strong> FreeRTOS copies the actual data into the queue. This means the sending task can immediately reuse the original variable safely.</li>
+                <li><strong>Blocking:</strong> A task can be configured to block (wait) for a defined timeout period if it tries to read from an empty queue or write to a full queue.</li>
+            </ul>
+
+            <h4>2. Mutexes (Mutual Exclusion)</h4>
+            <p>A Mutex is a "key" used to protect a shared resource (like a UART port or a global array). A task must "take" the mutex before accessing the resource and "give" it back when done.</p>
+            <ul>
+                <li><strong>Ownership:</strong> A mutex implies strict ownership. The task that takes the mutex <strong>must</strong> be the one to give it back.</li>
+                <li><strong>Priority Inheritance:</strong> Mutexes temporarily raise the priority of the task holding the mutex to match the priority of any higher-priority task waiting for it. This prevents a critical bug known as <em>Priority Inversion</em>.</li>
+            </ul>
+
+            <h4>3. Semaphores</h4>
+            <p>Semaphores are signaling mechanisms. Unlike mutexes, they do not imply ownership. Task A can take a semaphore, and Task B can give it.</p>
+            <ul>
+                <li><strong>Binary Semaphores:</strong> Can count to a maximum of 1. Ideal for <em>Deferred Interrupt Processing</em> (an ISR gives the semaphore, unblocking a high-priority task to do the heavy lifting).</li>
+                <li><strong>Counting Semaphores:</strong> Used to track multiple identical resources or count the number of events that have occurred.</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <section id="section-realtime">
+            <h2>2. Real-Time Systems</h2>
+            <p>A Real-Time System is an information processing system that must respond to externally generated input stimuli within a finite and specified period. The correctness of the system depends not only on the logical output but on the <strong>time</strong> at which the output is produced.</p>
+
+            <h3 id="rt-constraints">Types of Real-Time Constraints</h3>
+            <ul>
+                <li><strong>Hard Real-Time:</strong> Meeting every deadline is absolutely critical. A missed deadline causes catastrophic system failure, potential loss of life, or massive financial loss. <em>Examples: Pacemakers, Anti-lock Braking Systems (ABS), Air Traffic Control, Nuclear Reactor Control.</em></li>
+                <li><strong>Firm Real-Time:</strong> Missing a deadline makes the computed result completely useless, but the system won't instantly fail, and lives aren't directly at risk. The missed result is simply discarded. <em>Examples: Stock market trading systems, autonomous agricultural weeders.</em></li>
+                <li><strong>Soft Real-Time:</strong> Deadlines are important for performance, but missing them simply results in degraded service quality rather than total failure. <em>Examples: Video streaming, online gaming, ATM machines.</em></li>
+            </ul>
+
+            <h3 id="rt-scheduling">CPU Scheduling Algorithms</h3>
+            <p>In multi-tasking environments, an algorithm must decide which task runs next. Tasks are defined by their Release time ($R_i$), Execution Time ($C_i$), Deadline ($D_i$), and Period ($P_i$).</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Algorithm</th>
+                        <th>Type</th>
+                        <th>Mechanism & Priority Rule</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>FCFS</strong> (First Come First Served)</td>
+                        <td>Non-Preemptive</td>
+                        <td>Processes run in the exact order they arrive. Highly unpredictable response times.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SJF</strong> (Shortest Job First)</td>
+                        <td>Non-Preemptive</td>
+                        <td>The CPU is allocated to the task with the smallest execution burst time. Minimizes average wait time but can starve longer tasks.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SRTF</strong> (Shortest Remaining Time First)</td>
+                        <td>Preemptive</td>
+                        <td>The preemptive version of SJF. If a new task arrives with a shorter execution time than what is remaining for the current task, a context switch occurs.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>RR</strong> (Round Robin)</td>
+                        <td>Preemptive</td>
+                        <td>Every task gets an equal, fixed "Time Quantum" (e.g., 10ms). Tasks cycle continuously. Excellent for fairness but bad for strict real-time deadlines.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>RM</strong> (Rate Monotonic)</td>
+                        <td>Static / Offline</td>
+                        <td>Priority is assigned based on the task's period. The <strong>shorter the period, the higher the priority</strong>. Optimal for independent periodic tasks where Deadline = Period.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>DM</strong> (Deadline Monotonic)</td>
+                        <td>Static / Offline</td>
+                        <td>Priority is assigned based on the task's deadline. The <strong>shorter the deadline, the higher the priority</strong>.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>EDF</strong> (Earliest Deadline First)</td>
+                        <td>Dynamic / Online</td>
+                        <td>The scheduler constantly evaluates absolute deadlines. The task whose deadline is closest to the current time gets the highest priority.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>LLF</strong> (Least Laxity First)</td>
+                        <td>Dynamic / Online</td>
+                        <td>Priority goes to the task with the smallest Laxity. <em>Laxity = Deadline - Current Time - Remaining Execution Time</em>. It represents the "slack" time a task has left.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <hr>
+
+        <section id="section-timers">
+            <h2>3. Hardware Timers</h2>
+            <p>A Hardware Timer is a dedicated silicon peripheral within a microcontroller designed specifically to track time, generate pulses, or measure external signals, entirely independently of the CPU core. This frees the CPU to process data instead of running wasteful software delay loops.</p>
+
+            <h3 id="timers-base">The Time-Base Unit</h3>
+            <p>The core of any general-purpose timer consists of three crucial 16-bit or 32-bit registers:</p>
+            <ol>
+                <li><strong>Prescaler (PSC):</strong> The raw system clock (e.g., 72MHz) is usually too fast. The prescaler divides this clock frequency down. <br>
+                <code>Timer Clock = System Clock / (PSC + 1)</code></li>
+                <li><strong>Counter (CNT):</strong> This register increments (or decrements) by 1 every time the prescaler outputs a clock pulse (a "tick").</li>
+                <li><strong>Auto-Reload Register (ARR):</strong> This represents the "ceiling" of the timer. When the CNT reaches the value stored in the ARR, an Update Event (UEV) is generated, an interrupt can be triggered, and the CNT resets to 0.</li>
+            </ol>
+            <div class="callout">
+                <strong>Frequency Calculation:</strong> Update Frequency = <code>System Clock / ((PSC + 1) * (ARR + 1))</code>
+            </div>
+
+            <h3 id="timers-modes">Timer Interaction & Hardware Channels</h3>
+            <p>Advanced timers (like TIM1, TIM2, TIM3 on STM32) have independent "Channels" capable of specialized functions:</p>
+            <ul>
+                <li><strong>Output Compare:</strong> The timer forces a pin High or Low when the CNT matches a specific Capture/Compare Register (CCR) value. Used for precise event triggering.</li>
+                <li><strong>Input Capture:</strong> When a hardware pin detects an edge (rising or falling), the current value of the CNT is instantly copied into the CCR. Used for measuring the frequency or pulse width of external signals.</li>
+                <li><strong>PWM Generation (Pulse Width Modulation):</strong> Rapidly switching a pin High and Low. The ARR dictates the <em>Frequency</em>, and the CCR dictates the <em>Duty Cycle</em> (the percentage of time the signal is High). <br><code>Duty Cycle % = (CCR / (ARR + 1)) * 100</code></li>
+                <li><strong>One-Pulse Mode (OPM):</strong> Generates exactly one pulse of a precise length in response to a hardware trigger, then halts.</li>
+            </ul>
+
+            <h3 id="timers-systick">The SysTick Timer</h3>
+            <p>Unlike General-Purpose timers which are vendor-specific (STM32 vs NXP vs TI), the <strong>SysTick timer</strong> is universally embedded deeply within the ARM Cortex-M architecture itself. It is a 24-bit <strong>down-counter</strong> dedicated to providing the fundamental "heartbeat" (Tick) for Real-Time Operating Systems. It uses registers like SYST_RVR (Reload Value) and SYST_CVR (Current Value).</p>
+        </section>
+
+        <hr>
+
+        <section id="section-serial">
+            <h2>4. Serial Communication</h2>
+            <p>Serial communication transmits data sequentially over a single wire or pair of wires (one bit at a time). It drastically reduces the pin count and wiring complexity compared to Parallel communication.</p>
+
+            <h3 id="serial-uart">UART (Universal Asynchronous Receiver/Transmitter)</h3>
+            <p>UART is <strong>Asynchronous</strong>, meaning no clock signal is shared between the two devices. Because there is no clock, both sides must agree on a precise transmission speed beforehand, known as the <strong>Baud Rate</strong>.</p>
+            <ul>
+                <li><strong>Wiring:</strong> 2 Wires: TX (Transmit) and RX (Receive), plus a shared Ground.</li>
+                <li><strong>Data Frame:</strong> Idle state is HIGH. Transmission begins with a <strong>Start Bit</strong> (pulling line LOW). Followed by 5 to 9 <strong>Data Bits</strong> (sent LSB first). An optional <strong>Parity Bit</strong> (Even or Odd) is used for basic error checking. Finally, 1 or 2 <strong>Stop Bits</strong> (pulling line HIGH) return the bus to idle.</li>
+                <li><strong>Pros & Cons:</strong> Simple, requires only two pins, allows full-duplex. However, speeds are relatively slow, strictly limited to two devices, and highly susceptible to timing drift if baud rates mismatch.</li>
+            </ul>
+
+            <h3 id="serial-spi">SPI (Serial Peripheral Interface)</h3>
+            <p>SPI is a <strong>Synchronous</strong>, high-speed protocol heavily used for short-distance board-level communication (SD cards, LCD displays, fast sensors).</p>
+            <ul>
+                <li><strong>Wiring:</strong> 4 Wires: SCLK (Clock), MOSI (Master Out Slave In), MISO (Master In Slave Out), SS/CS (Slave Select).</li>
+                <li><strong>Architecture:</strong> Master-Slave. The Master generates the clock. Communication is full-duplex (data is sent and received simultaneously in a shift-register ring topology).</li>
+                <li><strong>Clock Configuration:</strong> Devices must align on Clock Polarity (CPOL) and Clock Phase (CPHA), yielding 4 possible SPI modes (Mode 0, 1, 2, 3).</li>
+                <li><strong>Pros & Cons:</strong> Extremely fast (often >10 Mbps), continuous data streaming without start/stop bits. However, it requires 4 wires, and adding more slaves requires adding more individual SS pins, causing PCB routing complexity.</li>
+            </ul>
+
+            <h3 id="serial-i2c">I2C (Inter-Integrated Circuit)</h3>
+            <p>I2C combines the multi-device capability of SPI with the low pin count of UART. It is a <strong>Synchronous</strong> protocol.</p>
+            <ul>
+                <li><strong>Wiring:</strong> 2 Wires: SDA (Serial Data) and SCL (Serial Clock). Both lines require external pull-up resistors.</li>
+                <li><strong>Architecture:</strong> Supports Multi-Master and Multi-Slave configurations. Slaves are targeted using unique 7-bit or 10-bit hardware addresses.</li>
+                <li><strong>Protocol Flow:</strong>
+                    <ol>
+                        <li><strong>Start Condition:</strong> Master pulls SDA low while SCL remains high.</li>
+                        <li><strong>Address Frame:</strong> Master sends the 7-bit Slave Address + 1 bit for Read/Write indication.</li>
+                        <li><strong>ACK/NACK:</strong> The targeted slave pulls SDA low to Acknowledge receipt.</li>
+                        <li><strong>Data Frames:</strong> Data is transmitted 8 bits at a time (MSB first), followed by an ACK.</li>
+                        <li><strong>Stop Condition:</strong> Master lets SDA float high while SCL is high.</li>
+                    </ol>
+                </li>
+                <li><strong>Pros & Cons:</strong> Highly scalable (up to 127 devices on two wires), robust built-in addressing and acknowledgment. However, it operates as Half-Duplex and is generally slower than SPI (Standard Mode: 100 kHz, Fast Mode: 400 kHz).</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <section id="section-stm32">
+            <h2>5. STM32 Practical Projects (C / HAL Library)</h2>
+            <p>The following six projects demonstrate how to implement the theoretical concepts discussed above using STMicroelectronics' HAL (Hardware Abstraction Layer) in C. These are typically generated inside <code>main.c</code> using STM32CubeIDE.</p>
+
+            <h3 id="proj-1">Project 1: Bare-Metal GPIO & SysTick Blinky</h3>
+            <p>The "Hello World" of embedded systems. We will toggle an LED using the HAL implementation of the ARM SysTick timer to generate a precise 1-millisecond delay.</p>
+<pre><code><span class="c-comment">/* Project 1: Basic LED Blinky using SysTick Delay */</span>
+<span class="c-macro">#include</span> <span class="c-string">"main.h"</span>
+
+<span class="c-type">void</span> <span class="c-function">SystemClock_Config</span>(<span class="c-type">void</span>);
+<span class="c-type">static void</span> <span class="c-function">MX_GPIO_Init</span>(<span class="c-type">void</span>);
+
+<span class="c-type">int</span> <span class="c-function">main</span>(<span class="c-type">void</span>)
+{
+    <span class="c-comment">/* Reset of all peripherals, Initializes the Flash interface and the Systick. */</span>
+    <span class="c-function">HAL_Init</span>();
+
+    <span class="c-comment">/* Configure the system clock */</span>
+    <span class="c-function">SystemClock_Config</span>();
+
+    <span class="c-comment">/* Initialize all configured peripherals */</span>
+    <span class="c-function">MX_GPIO_Init</span>();
+
+    <span class="c-comment">/* Infinite loop (Super Loop Architecture) */</span>
+    <span class="c-keyword">while</span> (<span class="c-number">1</span>)
+    {
+        <span class="c-comment">/* Toggle LED connected to GPIO Port A, Pin 5 (Standard Nucleo Green LED) */</span>
+        <span class="c-function">HAL_GPIO_TogglePin</span>(GPIOA, GPIO_PIN_5);
+        
+        <span class="c-comment">/* Delay for 500 milliseconds. 
+           HAL_Delay() relies directly on the ARM Cortex SysTick timer.
+           The SysTick is configured inside HAL_Init() to generate an interrupt every 1ms. */</span>
+        <span class="c-function">HAL_Delay</span>(<span class="c-number">500</span>);
+    }
+}
+
+<span class="c-type">static void</span> <span class="c-function">MX_GPIO_Init</span>(<span class="c-type">void</span>)
+{
+    <span class="c-type">GPIO_InitTypeDef</span> GPIO_InitStruct = {<span class="c-number">0</span>};
+
+    <span class="c-comment">/* Enable GPIOA clock */</span>
+    <span class="c-macro">__HAL_RCC_GPIOA_CLK_ENABLE</span>();
+
+    <span class="c-comment">/* Configure GPIO pin Output Level */</span>
+    <span class="c-function">HAL_GPIO_WritePin</span>(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
+    <span class="c-comment">/* Configure GPIO pin : PA5 */</span>
+    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP; <span class="c-comment">// Push-Pull mode</span>
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    <span class="c-function">HAL_GPIO_Init</span>(GPIOA, &GPIO_InitStruct);
+}
+</code></pre>
+
+            <h3 id="proj-2">Project 2: Hardware Timer Interrupts (Non-Blocking Delay)</h3>
+            <p>Using <code>HAL_Delay()</code> traps the CPU in a loop. Here, we use General Purpose Timer 3 (TIM3) to generate an interrupt every 1 second, freeing the <code>while(1)</code> loop for other tasks.</p>
+<pre><code><span class="c-comment">/* Project 2: Timer Interrupts. Assuming a 72MHz System Clock */</span>
+<span class="c-macro">#include</span> <span class="c-string">"main.h"</span>
+
+<span class="c-type">TIM_HandleTypeDef</span> htim3;
+
+<span class="c-type">void</span> <span class="c-function">SystemClock_Config</span>(<span class="c-type">void</span>);
+<span class="c-type">static void</span> <span class="c-function">MX_GPIO_Init</span>(<span class="c-type">void</span>);
+<span class="c-type">static void</span> <span class="c-function">MX_TIM3_Init</span>(<span class="c-type">void</span>);
+
+<span class="c-type">int</span> <span class="c-function">main</span>(<span class="c-type">void</span>)
+{
+    <span class="c-function">HAL_Init</span>();
+    <span class="c-function">SystemClock_Config</span>();
+    <span class="c-function">MX_GPIO_Init</span>();
+    <span class="c-function">MX_TIM3_Init</span>();
+
+    <span class="c-comment">/* Start the Timer Base generation in Interrupt Mode */</span>
+    <span class="c-function">HAL_TIM_Base_Start_IT</span>(&htim3);
+
+    <span class="c-keyword">while</span> (<span class="c-number">1</span>)
+    {
+        <span class="c-comment">/* CPU is free to do other tasks here! No blocking delays. */</span>
+    }
+}
+
+<span class="c-type">static void</span> <span class="c-function">MX_TIM3_Init</span>(<span class="c-type">void</span>)
+{
+    <span class="c-comment">/* TIM3 Clock = 72 MHz. 
+       Goal: 1 Hz (1 second) interrupt.
+       Calculation: 72,000,000 / (PSC+1) / (ARR+1) = 1
+       Let PSC = 7199 (Clock drops to 10 KHz)
+       Let ARR = 9999 (10 KHz / 10000 = 1 Hz) */</span>
+       
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = <span class="c-number">7199</span>;
+    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim3.Init.Period = <span class="c-number">9999</span>;
+    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    <span class="c-function">HAL_TIM_Base_Init</span>(&htim3);
+}
+
+<span class="c-comment">/* ISR Callback: Automatically called by HAL when TIM3 reaches ARR */</span>
+<span class="c-type">void</span> <span class="c-function">HAL_TIM_PeriodElapsedCallback</span>(<span class="c-type">TIM_HandleTypeDef</span> *htim)
+{
+    <span class="c-keyword">if</span> (htim->Instance == TIM3) {
+        <span class="c-comment">/* Toggle LED exactly every 1 second */</span>
+        <span class="c-function">HAL_GPIO_TogglePin</span>(GPIOA, GPIO_PIN_5);
+    }
+}
+</code></pre>
+
+            <h3 id="proj-3">Project 3: PWM Generation (Fading an LED)</h3>
+            <p>Instead of just toggling on and off, we use Timer Output Compare functionality to generate a PWM signal on TIM3 Channel 1. By adjusting the Capture/Compare Register (CCR), we change the duty cycle and dim the LED.</p>
+<pre><code><span class="c-comment">/* Project 3: PWM Generation for LED Fading */</span>
+<span class="c-macro">#include</span> <span class="c-string">"main.h"</span>
+
+<span class="c-type">TIM_HandleTypeDef</span> htim3;
+
+<span class="c-type">int</span> <span class="c-function">main</span>(<span class="c-type">void</span>)
+{
+    <span class="c-function">HAL_Init</span>();
+    <span class="c-function">SystemClock_Config</span>();
+    <span class="c-function">MX_GPIO_Init</span>();
+    <span class="c-function">MX_TIM3_Init</span>();
+
+    <span class="c-comment">/* Start PWM signals on TIM3 Channel 1 */</span>
+    <span class="c-function">HAL_TIM_PWM_Start</span>(&htim3, TIM_CHANNEL_1);
+
+    <span class="c-type">uint16_t</span> dutyCycle = <span class="c-number">0</span>;
+
+    <span class="c-keyword">while</span> (<span class="c-number">1</span>)
+    {
+        <span class="c-comment">/* Gradually increase brightness */</span>
+        <span class="c-keyword">for</span>(dutyCycle = <span class="c-number">0</span>; dutyCycle < <span class="c-number">1000</span>; dutyCycle += <span class="c-number">10</span>)
+        {
+            <span class="c-comment">/* Dynamically update the CCR1 register */</span>
+            <span class="c-macro">__HAL_TIM_SET_COMPARE</span>(&htim3, TIM_CHANNEL_1, dutyCycle);
+            <span class="c-function">HAL_Delay</span>(<span class="c-number">10</span>);
+        }
+        <span class="c-comment">/* Gradually decrease brightness */</span>
+        <span class="c-keyword">for</span>(dutyCycle = <span class="c-number">1000</span>; dutyCycle > <span class="c-number">0</span>; dutyCycle -= <span class="c-number">10</span>)
+        {
+            <span class="c-macro">__HAL_TIM_SET_COMPARE</span>(&htim3, TIM_CHANNEL_1, dutyCycle);
+            <span class="c-function">HAL_Delay</span>(<span class="c-number">10</span>);
+        }
+    }
+}
+
+<span class="c-type">static void</span> <span class="c-function">MX_TIM3_Init</span>(<span class="c-type">void</span>)
+{
+    <span class="c-type">TIM_OC_InitTypeDef</span> sConfigOC = {<span class="c-number">0</span>};
+
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = <span class="c-number">71</span>;    <span class="c-comment">// 72MHz / 72 = 1MHz timer clock</span>
+    htim3.Init.Period = <span class="c-number">999</span>;      <span class="c-comment">// 1MHz / 1000 = 1kHz PWM frequency</span>
+    <span class="c-function">HAL_TIM_PWM_Init</span>(&htim3);
+
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse = <span class="c-number">0</span>;          <span class="c-comment">// Initial duty cycle (0%)</span>
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    
+    <span class="c-comment">/* Attach the OC config to Channel 1 */</span>
+    <span class="c-function">HAL_TIM_PWM_ConfigChannel</span>(&htim3, &sConfigOC, TIM_CHANNEL_1);
+}
+</code></pre>
+
+            <h3 id="proj-4">Project 4: UART Communication (Transmit & Receive Interrupts)</h3>
+            <p>Configuring Asynchronous Serial Communication. We send a startup message via polling, then set up a non-blocking interrupt mechanism to echo received characters back to a PC terminal.</p>
+<pre><code><span class="c-comment">/* Project 4: UART Polling Transmit & Interrupt Receive */</span>
+<span class="c-macro">#include</span> <span class="c-string">"main.h"</span>
+<span class="c-macro">#include</span> <span class="c-string">&lt;string.h&gt;</span>
+
+<span class="c-type">UART_HandleTypeDef</span> huart2;
+
+<span class="c-comment">/* Global buffer for receiving 1 byte */</span>
+<span class="c-type">uint8_t</span> rx_buffer[<span class="c-number">1</span>];
+
+<span class="c-type">int</span> <span class="c-function">main</span>(<span class="c-type">void</span>)
+{
+    <span class="c-function">HAL_Init</span>();
+    <span class="c-function">SystemClock_Config</span>();
+    <span class="c-function">MX_USART2_UART_Init</span>();
+
+    <span class="c-type">char</span> *msg = <span class="c-string">"System Booting... \r\nEnter a character:\r\n"</span>;
+    
+    <span class="c-comment">/* Transmit via Polling (Blocking). Wait max 100ms. */</span>
+    <span class="c-function">HAL_UART_Transmit</span>(&huart2, (<span class="c-type">uint8_t</span>*)msg, <span class="c-function">strlen</span>(msg), <span class="c-number">100</span>);
+
+    <span class="c-comment">/* Arm the UART Receive Interrupt. 
+       It will trigger when exactly 1 byte is received. */</span>
+    <span class="c-function">HAL_UART_Receive_IT</span>(&huart2, rx_buffer, <span class="c-number">1</span>);
+
+    <span class="c-keyword">while</span> (<span class="c-number">1</span>)
+    {
+        <span class="c-comment">// Main loop is free</span>
+    }
+}
+
+<span class="c-type">static void</span> <span class="c-function">MX_USART2_UART_Init</span>(<span class="c-type">void</span>)
+{
+    huart2.Instance = USART2;
+    huart2.Init.BaudRate = <span class="c-number">115200</span>;
+    huart2.Init.WordLength = UART_WORDLENGTH_8B;
+    huart2.Init.StopBits = UART_STOPBITS_1;
+    huart2.Init.Parity = UART_PARITY_NONE;
+    huart2.Init.Mode = UART_MODE_TX_RX;
+    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+    <span class="c-function">HAL_UART_Init</span>(&huart2);
+}
+
+<span class="c-comment">/* ISR Callback: Automatically called when the requested bytes are received */</span>
+<span class="c-type">void</span> <span class="c-function">HAL_UART_RxCpltCallback</span>(<span class="c-type">UART_HandleTypeDef</span> *huart)
+{
+    <span class="c-keyword">if</span>(huart->Instance == USART2)
+    {
+        <span class="c-comment">/* Echo the character back to the terminal */</span>
+        <span class="c-function">HAL_UART_Transmit</span>(&huart2, rx_buffer, <span class="c-number">1</span>, <span class="c-number">10</span>);
+        
+        <span class="c-comment">/* Re-arm the interrupt for the next character */</span>
+        <span class="c-function">HAL_UART_Receive_IT</span>(&huart2, rx_buffer, <span class="c-number">1</span>);
+    }
+}
+</code></pre>
+
+            <h3 id="proj-5">Project 5: SPI Master (Reading a Sensor Register)</h3>
+            <p>Implementing Synchronous full-duplex communication using SPI. We manually toggle the Chip Select (CS) pin to initiate communication, send a register address, and receive the response data concurrently.</p>
+<pre><code><span class="c-comment">/* Project 5: SPI Master Communication */</span>
+<span class="c-macro">#include</span> <span class="c-string">"main.h"</span>
+
+<span class="c-type">SPI_HandleTypeDef</span> hspi1;
+
+<span class="c-type">int</span> <span class="c-function">main</span>(<span class="c-type">void</span>)
+{
+    <span class="c-function">HAL_Init</span>();
+    <span class="c-function">SystemClock_Config</span>();
+    <span class="c-function">MX_GPIO_Init</span>();
+    <span class="c-function">MX_SPI1_Init</span>();
+
+    <span class="c-type">uint8_t</span> txData[<span class="c-number">2</span>] = {<span class="c-number">0x8F</span>, <span class="c-number">0x00</span>}; <span class="c-comment">// 0x8F: Example read command (MSB=1 for read)</span>
+    <span class="c-type">uint8_t</span> rxData[<span class="c-number">2</span>] = {<span class="c-number">0</span>, <span class="c-number">0</span>};
+    
+    <span class="c-keyword">while</span> (<span class="c-number">1</span>)
+    {
+        <span class="c-comment">/* Step 1: Pull Chip Select (CS) LOW to activate slave */</span>
+        <span class="c-function">HAL_GPIO_WritePin</span>(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+        
+        <span class="c-comment">/* Step 2: Transmit and Receive simultaneously. 
+           Send address, get junk. Send junk, get data. */</span>
+        <span class="c-function">HAL_SPI_TransmitReceive</span>(&hspi1, txData, rxData, <span class="c-number">2</span>, <span class="c-number">100</span>);
+        
+        <span class="c-comment">/* Step 3: Pull Chip Select (CS) HIGH to deactivate slave */</span>
+        <span class="c-function">HAL_GPIO_WritePin</span>(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+        
+        <span class="c-comment">/* rxData[1] now contains the sensor data */</span>
+        <span class="c-function">HAL_Delay</span>(<span class="c-number">1000</span>);
+    }
+}
+
+<span class="c-type">static void</span> <span class="c-function">MX_SPI1_Init</span>(<span class="c-type">void</span>)
+{
+    hspi1.Instance = SPI1;
+    hspi1.Init.Mode = SPI_MODE_MASTER;
+    hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+    hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+    hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;   <span class="c-comment">// CPOL = 0</span>
+    hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;       <span class="c-comment">// CPHA = 0 (Mode 0)</span>
+    hspi1.Init.NSS = SPI_NSS_SOFT;               <span class="c-comment">// Manual CS control via GPIO</span>
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+    hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+    <span class="c-function">HAL_SPI_Init</span>(&hspi1);
+}
+</code></pre>
+
+            <h3 id="proj-6">Project 6: FreeRTOS Task Management & Queues</h3>
+            <p>Moving away from the Super Loop, this project implements a Real-Time Operating System structure. We define two tasks and an inter-task communication queue. Task 1 produces data and sends it to the queue. Task 2 consumes the data and acts on it.</p>
+<pre><code><span class="c-comment">/* Project 6: FreeRTOS Integration with CMSIS-OS wrapper */</span>
+<span class="c-macro">#include</span> <span class="c-string">"main.h"</span>
+<span class="c-macro">#include</span> <span class="c-string">"cmsis_os.h"</span>
+
+<span class="c-comment">/* RTOS Handles */</span>
+<span class="c-type">osThreadId_t</span> ProducerTaskHandle;
+<span class="c-type">osThreadId_t</span> ConsumerTaskHandle;
+<span class="c-type">osMessageQueueId_t</span> DataQueueHandle;
+
+<span class="c-comment">/* Task Prototypes */</span>
+<span class="c-type">void</span> <span class="c-function">StartProducerTask</span>(<span class="c-type">void</span> *argument);
+<span class="c-type">void</span> <span class="c-function">StartConsumerTask</span>(<span class="c-type">void</span> *argument);
+
+<span class="c-type">int</span> <span class="c-function">main</span>(<span class="c-type">void</span>)
+{
+    <span class="c-function">HAL_Init</span>();
+    <span class="c-function">SystemClock_Config</span>();
+    <span class="c-function">MX_GPIO_Init</span>();
+
+    <span class="c-comment">/* Init scheduler */</span>
+    <span class="c-function">osKernelInitialize</span>();
+
+    <span class="c-comment">/* Create Queue: holds up to 5 unsigned 32-bit integers */</span>
+    DataQueueHandle = <span class="c-function">osMessageQueueCreate</span>(<span class="c-number">5</span>, <span class="c-keyword">sizeof</span>(<span class="c-type">uint32_t</span>), NULL);
+
+    <span class="c-comment">/* Create Tasks */</span>
+    <span class="c-type">const</span> <span class="c-type">osThreadAttr_t</span> Producer_attributes = {
+        .name = <span class="c-string">"Producer"</span>,
+        .priority = (<span class="c-type">osPriority_t</span>) osPriorityNormal,
+        .stack_size = <span class="c-number">128</span> * <span class="c-number">4</span>
+    };
+    ProducerTaskHandle = <span class="c-function">osThreadNew</span>(StartProducerTask, NULL, &Producer_attributes);
+
+    <span class="c-type">const</span> <span class="c-type">osThreadAttr_t</span> Consumer_attributes = {
+        .name = <span class="c-string">"Consumer"</span>,
+        .priority = (<span class="c-type">osPriority_t</span>) osPriorityAboveNormal,
+        .stack_size = <span class="c-number">128</span> * <span class="c-number">4</span>
+    };
+    ConsumerTaskHandle = <span class="c-function">osThreadNew</span>(StartConsumerTask, NULL, &Consumer_attributes);
+
+    <span class="c-comment">/* Start the FreeRTOS scheduler */</span>
+    <span class="c-function">osKernelStart</span>();
+
+    <span class="c-comment">/* We should never get here as control is now taken by the scheduler */</span>
+    <span class="c-keyword">while</span> (<span class="c-number">1</span>) {}
+}
+
+<span class="c-comment">/* Task 1: Produces data and writes to the queue */</span>
+<span class="c-type">void</span> <span class="c-function">StartProducerTask</span>(<span class="c-type">void</span> *argument)
+{
+    <span class="c-type">uint32_t</span> count = <span class="c-number">0</span>;
+    <span class="c-keyword">for</span>(;;)
+    {
+        count++;
+        <span class="c-comment">/* Send count to queue. Timeout = 0 (do not block if full) */</span>
+        <span class="c-function">osMessageQueuePut</span>(DataQueueHandle, &count, <span class="c-number">0</span>, <span class="c-number">0</span>);
+        
+        <span class="c-comment">/* Block task for 500 OS Ticks (usually 500ms). 
+           This yields the CPU to other tasks. */</span>
+        <span class="c-function">osDelay</span>(<span class="c-number">500</span>);
+    }
+}
+
+<span class="c-comment">/* Task 2: Waits for data in the queue */</span>
+<span class="c-type">void</span> <span class="c-function">StartConsumerTask</span>(<span class="c-type">void</span> *argument)
+{
+    <span class="c-type">uint32_t</span> receivedData;
+    <span class="c-keyword">for</span>(;;)
+    {
+        <span class="c-comment">/* Wait indefinitely (osWaitForever) until data arrives in the queue.
+           Task is in BLOCKED state consuming 0 CPU cycles until data arrives. */</span>
+        <span class="c-function">osMessageQueueGet</span>(DataQueueHandle, &receivedData, NULL, osWaitForever);
+        
+        <span class="c-keyword">if</span> (receivedData % <span class="c-number">2</span> == <span class="c-number">0</span>) {
+            <span class="c-comment">/* Toggle LED on even numbers */</span>
+            <span class="c-function">HAL_GPIO_TogglePin</span>(GPIOA, GPIO_PIN_5);
+        }
+    }
+}
+</code></pre>
+
+        </section>
+
+        <hr>
+        
+        <footer style="text-align: center; color: var(--text-muted); font-size: 0.9em; padding-bottom: 30px;">
+            <p>Comprehensive Embedded Systems Guide | Generated from RTOS, Timers, Real-Time Systems, and Serial Comm notes.</p>
+        </footer>
+
+    </main>
+
+    <script>
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
